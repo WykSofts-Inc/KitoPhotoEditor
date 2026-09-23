@@ -38,12 +38,12 @@ public enum KitoPhotoFilter: String, CaseIterable, Identifiable, Sendable {
         case .original:
             return image
         case .vivid:
-            let vibrance = CIFilter.vibrance(); vibrance.inputImage = image; vibrance.amount = 0.6
-            return KitoPhotoRenderer.colorControls(vibrance.outputImage ?? image, saturation: 1.25, contrast: 1.08)
+            let vibrance = CIFilter.vibrance(); vibrance.inputImage = image; vibrance.amount = 0.8
+            return KitoPhotoRenderer.colorControls(vibrance.outputImage ?? image, saturation: 1.12)
         case .warm:
-            return KitoPhotoRenderer.temperature(image, warmth: 0.6)
+            return KitoPhotoRenderer.temperature(image, warmth: 0.9)
         case .cool:
-            return KitoPhotoRenderer.temperature(image, warmth: -0.6)
+            return KitoPhotoRenderer.temperature(image, warmth: -0.9)
         case .mono:
             return KitoPhotoRenderer.effect("CIPhotoEffectMono", image)
         case .noir:
@@ -55,7 +55,8 @@ public enum KitoPhotoFilter: String, CaseIterable, Identifiable, Sendable {
         case .instant:
             return KitoPhotoRenderer.effect("CIPhotoEffectInstant", image)
         case .dramatic:
-            return KitoPhotoRenderer.vignette(KitoPhotoRenderer.colorControls(image, saturation: 0.9, contrast: 1.35), amount: 0.7)
+            let lifted = CIFilter.exposureAdjust(); lifted.inputImage = image; lifted.ev = 0.25
+            return KitoPhotoRenderer.vignette(KitoPhotoRenderer.colorControls(lifted.outputImage ?? image, saturation: 0.85, contrast: 1.18), amount: 0.6)
         case .sepia:
             let sepia = CIFilter.sepiaTone(); sepia.inputImage = image; sepia.intensity = 0.85
             return sepia.outputImage ?? image

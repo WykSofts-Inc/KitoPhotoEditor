@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    name: Build and test (iOS Simulator)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pick a scheme and an iPhone simulator
+        id: setup
+        run: |
+          NAME=$(basename "$GITHUB_REPOSITORY")
+          SCHEMES=$(xcodebuild -list -json | python3 -c "import json,sys; print('\n'.join(json.load(sys.stdin)['workspace']['schemes']))")
+          if echo "$SCHEMES" | grep -qx "$NAME-Package"; then SCHEME="$NAME-Package"; else SCHEME="$NAME"; fi
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(v['udid'] for k,l in sorted(d.items(), reverse=True) if 'iOS' in k for v in l if v['name'].startswith('iPhone')))")
+          echo "scheme=$SCHEME" >> "$GITHUB_OUTPUT"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          echo "Scheme: $SCHEME, simulator: $UDID"
+
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild build -scheme "${{ steps.setup.outputs.scheme }}" \
+            -destination 'generic/platform=iOS Simulator' \
+            -skipPackagePluginValidation -skipMacroValidation | xcpretty
+
+      - name: Test
+        run: |
+          set -o pipefail
+          if [ -d Tests ]; then
+            xcodebuild test -scheme "${{ steps.setup.outputs.scheme }}" \
+              -destination "id=${{ steps.setup.outputs.udid }}" \
+              -skipPackagePluginValidation -skipMacroValidation | xcpretty
+          else
+            echo "No tests in this package."
+          fi

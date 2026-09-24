@@ -1,0 +1,87 @@
+name: Docs
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build DocC
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build documentation archives
+        run: |
+          set -eo pipefail
+          NAME=$(basename "$GITHUB_REPOSITORY")
+          SCHEMES=$(xcodebuild -list -json | python3 -c "import json,sys; print('\n'.join(json.load(sys.stdin)['workspace']['schemes']))")
+          if echo "$SCHEMES" | grep -qx "$NAME-Package"; then SCHEME="$NAME-Package"; else SCHEME="$NAME"; fi
+          echo "Scheme: $SCHEME"
+          xcodebuild docbuild -scheme "$SCHEME" \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/dd" \
+            -skipPackagePluginValidation -skipMacroValidation -quiet
+
+      - name: Transform for static hosting
+        run: |
+          set -eo pipefail
+          NAME=$(basename "$GITHUB_REPOSITORY")
+          DOCC=$(xcrun --find docc)
+          TARGETS=$(find Sources -mindepth 2 -maxdepth 2 -type d -name '*.docc' | awk -F/ '{print $2}' | sort)
+          ARCHIVES=()
+          for T in $TARGETS; do
+            A=$(find "$RUNNER_TEMP/dd/Build/Products" -type d -name "$T.doccarchive" | head -n 1)
+            if [ -z "$A" ]; then echo "::error::No archive for $T"; exit 1; fi
+            ARCHIVES+=("$A")
+          done
+          if [ "${#ARCHIVES[@]}" -gt 1 ]; then
+            "$DOCC" merge "${ARCHIVES[@]}" \
+              --synthesized-landing-page-name "$NAME" \
+              --output-path "$RUNNER_TEMP/merged.doccarchive"
+            ARCHIVE="$RUNNER_TEMP/merged.doccarchive"
+            LANDING="documentation/"
+          else
+            ARCHIVE="${ARCHIVES[0]}"
+            LANDING="documentation/$(echo "$TARGETS" | tr '[:upper:]' '[:lower:]')/"
+          fi
+          "$DOCC" process-archive transform-for-static-hosting "$ARCHIVE" \
+            --output-path docs-site \
+            --hosting-base-path "$NAME"
+          cat > docs-site/index.html <<HTML
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <title>$NAME Documentation</title>
+            <meta http-equiv="refresh" content="0; url=$LANDING">
+            <link rel="canonical" href="$LANDING">
+          </head>
+          <body><a href="$LANDING">$NAME documentation</a></body>
+          </html>
+          HTML
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs-site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

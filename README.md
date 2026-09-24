@@ -1,5 +1,7 @@
 # KitoPhotoEditor
 
+**[Documentation](https://wyksofts-inc.github.io/KitoPhotoEditor/documentation/kitophotoeditor/)**
+
 Take a photo and edit it in SwiftUI: a camera with flash, zoom and flip, twelve filters with
 intensity, eight adjustments, crop, rotate and flip, and draggable text. Press and hold the photo to
 compare it with the original. Part of the [Kito](https://github.com/WykSofts-Inc/KitoDevKit) ecosystem.

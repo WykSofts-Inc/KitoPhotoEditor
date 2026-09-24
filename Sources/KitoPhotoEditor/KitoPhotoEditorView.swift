@@ -8,7 +8,8 @@
 
 import SwiftUI
 
-/// A piece of text placed on the photo, as a fraction of its size.
+/// A piece of text placed on the photo, as a fraction of its size measured from the photo's
+/// top-left corner (the photo itself never mirrors, so neither does this, in any layout direction).
 public struct KitoPhotoText: Identifiable, Equatable, Sendable {
     public let id = UUID()
     public var text: String
@@ -81,6 +82,7 @@ public struct KitoPhotoEditorView: View {
     @State private var draftText = ""
     @State private var isExporting = false
     @State private var renderTask: Task<Void, Never>?
+    @Environment(\.layoutDirection) private var layoutDirection
 
     public init(image: UIImage, onCancel: @escaping () -> Void = {}, onDone: @escaping (UIImage) -> Void) {
         self.original = image
@@ -142,7 +144,9 @@ public struct KitoPhotoEditorView: View {
                         .font(.system(size: 30 * item.scale, weight: .heavy, design: .rounded))
                         .foregroundStyle(KitoPhotoText.palette[item.colorIndex % KitoPhotoText.palette.count])
                         .shadow(color: .black.opacity(0.4), radius: 4, y: 2)
-                        .position(x: item.position.x * fitted.width, y: item.position.y * fitted.height)
+                        // `position` mirrors in right-to-left layouts; the photo and the drag don't.
+                        .position(x: (layoutDirection == .rightToLeft ? 1 - item.position.x : item.position.x) * fitted.width,
+                                  y: item.position.y * fitted.height)
                         .gesture(DragGesture().onChanged { value in
                             item.position = CGPoint(x: min(max(value.location.x / fitted.width, 0.05), 0.95), y: min(max(value.location.y / fitted.height, 0.05), 0.95))
                         })

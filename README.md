@@ -39,6 +39,12 @@ Filters: `.original`, `.vivid`, `.warm`, `.cool`, `.mono`, `.noir`, `.fade`, `.c
 `.dramatic`, `.sepia`, `.film`. Adjustments: exposure, brightness, contrast, saturation and warmth
 (-1…1); vignette, sharpness and grain (0…1). Everything is Core Image on one shared context.
 
+## Right-to-left
+
+The editor's controls mirror with the layout direction; the photo, filters, crop, rotation and flip
+stay physical, as photos should. Text you place on the photo is stored from the photo's top-left
+corner, so it lands where you drag it and in the same spot in the exported image, in either direction.
+
 ## Installation
 
 ```swift
